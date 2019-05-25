@@ -1,0 +1,147 @@
+<!doctype html>
+<html>
+<head>
+
+<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+<meta content="utf-8" http-equiv="encoding">
+
+  <script type="text/javascript">
+
+/*
+   A Zato WebSocket client which knows how to:
+
+   * Establish long-running connections
+   * Invoke services
+   * Subscribe to pub/sub messages
+   * Unsubscribe from pub/sub
+   * Resume subscriptions
+*/
+class WSXClient {
+
+
+  constructor(client_id, client_name, address, username, password) {
+
+    // Client ID -> a random string
+    this.client_id = client_id
+
+    // Client name -> human-readable
+    this.client_name = client_name;
+
+    // WSX address to connect to
+    this.address = address;
+
+    // Username to log in with
+    this.username = username;
+
+    // Password to log in with
+    this.password = password;
+
+    // Zato WSX token that we will be using once logged in
+    this.token = '<invalid>';
+
+    // The underlying WebSocket object
+    this.impl = null;
+
+    // A dictionary of msg_id objects to which we expect a response
+    this.response_map = {};
+
+    // How many milliseconds to wait for a response from Zato by default
+    this.default_wait_time = 500;
+  }
+
+  connect() {
+    console.log('Connecting to '+ this.address);
+
+    // Establish a new connection
+    this.impl = new WebSocket(this.address);
+
+    // Assign a callback that will obtain a session token
+    this.impl.onopen = this.on_wsx_open.bind(this);
+
+    // A callback invoked for each message received from the server
+    this.impl.onmessage = this.on_wsx_message.bind(this);
+
+  }
+
+  get_base_message(msg_id) {
+    let msg = {}
+    msg.meta = {
+        'id': msg_id,
+        'timestamp': new Date().toISOString(),
+    }
+    return msg;
+  }
+
+  get_create_session_message(msg_id) {
+
+    // Base message to enrich with additional information
+    let msg = this.get_base_message(msg_id);
+
+    msg.meta.action = "create-session";
+
+    msg.meta.client_id = this.client_id;
+    msg.meta.client_name = this.client_name;
+
+    msg.meta.username = this.username;
+    msg.meta.password = this.password;
+
+    return JSON.stringify(msg);
+  }
+
+  generate_msg_id() {
+    return this.client_name + '.' + Math.random().toString(16);
+  }
+
+  invoke(msg_id, msg, wait_time) {
+
+    // Add msg_id to the response map, signalling thus that we expect a response
+    this.response_map[msg_id] = null;
+
+    // Invoke Zato
+    this.impl.send(msg);
+
+    // Check if there was a response after a while
+    let _after_invoke = function() {
+      this.handle_response(msg_id);
+    }
+
+    setTimeout(_after_invoke.bind(this), wait_time || this.default_wait_time);
+  }
+
+  handle_response(msg_id) {
+    const response = this.response_map[msg_id];
+    console.log(`Response to ${msg_id} is ${response}`);
+  }
+
+  on_wsx_open(e) {
+    console.log(`Connected to ${this.address}`)
+
+    // Request a session token now that we have connected
+    const msg_id = this.generate_msg_id();
+    const msg = this.get_create_session_message(msg_id);
+    this.invoke(msg_id, msg);
+  }
+
+  on_wsx_message(e) {
+    console.log(`Message received ${e.data}`);
+    const msg = JSON.parse(e.data);
+
+    this.response_map[msg.meta.in_reply_to] = msg;
+
+  }
+
+};
+
+const client_id   = '123.456.789';
+const client_name = 'My API Client';
+const address     = 'ws://localhost:50100/myapi'
+const username    = 'username1';
+const password    = 'password1';
+
+const client = new WSXClient(client_id, client_name, address, username, password)
+client.connect();
+
+  </script>
+</head>
+<body>
+</body>
