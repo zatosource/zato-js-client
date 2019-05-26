@@ -55,6 +55,9 @@ class WSXClient {
     // A callback to invoke after the connection is established
     this.when_ready = null;
 
+    // A callback to invoke after each message from Zato received
+    this.on_message_received = null;
+
     // Are we already connected to Zato?
     this._is_connected = false;
   }
@@ -77,7 +80,7 @@ class WSXClient {
 /* **************************************************************************************************************************** */
 
   on_wsx_open(e) {
-    console.log(`Connected to ${this.address}`)
+    console.log(`>> Connected to '${this.address}'`)
 
     // Set a flag signalling that we are connected now
     this._is_connected = true;
@@ -89,7 +92,7 @@ class WSXClient {
     // A callback to invoke after we have a session established with Zato
     function on_session_created() {
       const msg = this.response_map[msg_id];
-      console.log(`Received session token ${msg.data.token} for client ${this.client_name} (${this.client_id})`);
+      console.log(`>> Received session token '${msg.data.token}' for client '${this.client_name}' (${this.client_id})`);
       this.token = msg.data.token;
       this.when_ready(this);
     }
@@ -122,7 +125,7 @@ class WSXClient {
 /* **************************************************************************************************************************** */
 
   _continue_to_wait(attempts, condition_func, callback_func, object_type) {
-    console.log(`Waiting for ${object_type} to ${this.address}, attempts left: ${attempts+1}`);
+    console.log(`<< Waiting for '${object_type}' to '${this.address}', attempts left: ${attempts+1}`);
     setTimeout(this.wait_for_event.bind(this), 1000, attempts, condition_func, callback_func, object_type);
   }
 
@@ -201,9 +204,10 @@ class WSXClient {
 
     msg.meta.action = 'invoke-service';
     msg.meta.token = this.token;
+    msg.meta.id = msg_id;
 
     msg.data = {
-      'name': service,
+      'service': service,
       'request': request
     }
 
@@ -218,38 +222,37 @@ class WSXClient {
 
 /* **************************************************************************************************************************** */
 
-  send(msg_id, msg, wait_time) {
+  send(msg_id, msg) {
 
     // Add msg_id to the response map, signalling thus that we expect a response
     this.response_map[msg_id] = null;
 
     // Invoke Zato
     this.impl.send(msg);
-
-    /*
-    // Check if there was a response after a while
-    let _after_invoke = function() {
-      this.handle_response(msg_id);
-    }
-
-    setTimeout(_after_invoke.bind(this), wait_time || this.default_wait_time);
-    */
   }
 
 /* **************************************************************************************************************************** */
 
   handle_response(msg_id) {
     const response = this.response_map[msg_id];
-    console.log(`Response to ${msg_id} is ${response}`);
+    console.log(`>> Response to '${msg_id}' is ${JSON.stringify(response)}`);
+
+    this.on_message_received(this, response);
   }
 
 /* **************************************************************************************************************************** */
 
-  invoke(service, request, msg_id) {
-    const _msg_id = msg_id || this.generate_msg_id();
+  invoke(service, request, _msg_id) {
+    const msg_id = _msg_id || this.generate_msg_id();
     const msg = this.get_service_invoke_message(msg_id, service, request);
+    console.log(`<< Invoking service with ${msg}`);
 
-    console.log(`Invoking service with ${msg}`);
+    function _handle_response() {
+      return this.handle_response.bind(this)(msg_id);
+    }
+
+    this.send(msg_id, msg);
+    this._wait_for_response(msg_id, _handle_response);
   }
 
 /* **************************************************************************************************************************** */
@@ -257,7 +260,7 @@ class WSXClient {
   on_wsx_message(e) {
 
     // Log data received
-    console.log(`Message received ${e.data}`);
+    console.log(`>> Message received ${e.data}`);
 
     // We always expect JSON on input
     const msg = JSON.parse(e.data);
@@ -272,14 +275,6 @@ class WSXClient {
       zzz
     }
   }
-
-/* **************************************************************************************************************************** */
-
-  on_request_received(msg) {
-    // This is a default handler for non-responses (i.e. requests)
-    // received from Zato servers. It simply logs the message received.
-    console.log(`WSX request received ${msg}`);
-  }
 };
 
 /* **************************************************************************************************************************** */
@@ -292,9 +287,16 @@ const password    = 'password1';
 
 /* **************************************************************************************************************************** */
 
+// A callback function to be invoked for each message received from Zato
+function on_message_received(client, msg) {
+  console.log(`>> Callback invoked with ${msg}`);
+}
+
+/* **************************************************************************************************************************** */
+
 // A callback function to be invoked once the client connects to Zato
 function when_ready(client) {
-  console.log(`Client ${client.client_name} connected to ${client.address} as ${client.username}`);
+  console.log(`>> Client ${client.client_name} connected to ${client.address} as ${client.username}`);
 
   // Service invocation configuration
   const service = 'zato.ping';
@@ -317,7 +319,9 @@ client.client_name = client_name;
 client.address = address;
 client.username = username;
 client.password = password;
+
 client.when_ready = when_ready;
+client.on_message_received = on_message_received;
 
 /* **************************************************************************************************************************** */
 
