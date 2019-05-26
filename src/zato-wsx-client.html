@@ -7,6 +7,8 @@
 
   <script type="text/javascript">
 
+/* **************************************************************************************************************************** */
+
 /*
    A Zato WebSocket client which knows how to:
 
@@ -18,6 +20,7 @@
 */
 class WSXClient {
 
+/* **************************************************************************************************************************** */
 
   constructor() {
 
@@ -37,7 +40,8 @@ class WSXClient {
     this.password = null;
 
     // Zato WSX token that we will be using once logged in
-    this.token = '<invalid>';
+    this.invalid_token = '<invalid>';
+    this.token = this.invalid_token;
 
     // The underlying WebSocket object
     this.impl = null;
@@ -49,11 +53,13 @@ class WSXClient {
     this.default_wait_time = 500;
 
     // A callback to invoke after the connection is established
-    this.after_connected = null;
+    this.when_ready = null;
 
     // Are we already connected to Zato?
     this._is_connected = false;
   }
+
+/* **************************************************************************************************************************** */
 
   connect() {
     console.log('Connecting to '+ this.address);
@@ -66,30 +72,98 @@ class WSXClient {
 
     // A callback invoked for each message received from the server
     this.impl.onmessage = this.on_wsx_message.bind(this);
+  }
+
+/* **************************************************************************************************************************** */
+
+  on_wsx_open(e) {
+    console.log(`Connected to ${this.address}`)
 
     // Set a flag signalling that we are connected now
-    //this._is_connected = true;
+    this._is_connected = true;
 
+    // Request a session token now that we have connected
+    const msg_id = this.generate_msg_id();
+    const msg = this.get_create_session_message(msg_id);
+
+    // A callback to invoke after we have a session established with Zato
+    function on_session_created() {
+      const msg = this.response_map[msg_id];
+      console.log(`Received session token ${msg.data.token} for client ${this.client_name} (${this.client_id})`);
+      this.token = msg.data.token;
+      this.when_ready(this);
+    }
+
+    // Request a session token ..
+    this.send(msg_id, msg);
+
+    // .. and wait for it.
+    this._wait_for_response(msg_id, on_session_created);
   }
 
-  _set_up_wait_for_connection(attempts) {
-    console.log(`Waiting for connection to ${this.address}, attempts left: ${attempts+1}`);
-    setTimeout(this.wait_for_connection.bind(this), 1000, attempts);
+/* **************************************************************************************************************************** */
+
+  _check_is_connected() {
+    return this._is_connected;
   }
 
-  wait_for_connection(attempts) {
-    if(!this._is_connected) {
+/* **************************************************************************************************************************** */
+
+  _check_has_token() {
+    return this.token != this.invalid_token;
+  }
+
+/* **************************************************************************************************************************** */
+
+  _check_has_response(msg_id) {
+    return this.response_map[msg_id];
+  }
+
+/* **************************************************************************************************************************** */
+
+  _continue_to_wait(attempts, condition_func, callback_func, object_type) {
+    console.log(`Waiting for ${object_type} to ${this.address}, attempts left: ${attempts+1}`);
+    setTimeout(this.wait_for_event.bind(this), 1000, attempts, condition_func, callback_func, object_type);
+  }
+
+/* **************************************************************************************************************************** */
+
+  wait_for_event(attempts, condition_func, callback_func, object_type) {
+    if(!condition_func()) {
       if(attempts < 0) {
-        console.log(`Could not connect to ${this.address}`);
+        console.log(`Could not obtain ${object_type} to ${this.address}`);
       }
       else {
-        this._set_up_wait_for_connection(attempts-1);
+        this._continue_to_wait(attempts-1, condition_func, callback_func, object_type);
       }
     }
     else {
-      console.log('CONNECTED');
+      if(callback_func) {
+        callback_func.bind(this)();
+      }
     }
   }
+
+/* **************************************************************************************************************************** */
+
+  wait_until_ready(attempts) {
+    this.wait_for_event(attempts, this._check_is_connected.bind(this), null, 'connection');
+  }
+
+
+/* **************************************************************************************************************************** */
+
+  _wait_for_token() {
+    this.wait_for_event(1000, this._check_has_token.bind(this), this.when_ready, 'token');
+  }
+
+/* **************************************************************************************************************************** */
+
+  _wait_for_response(msg_id, callback_func) {
+    this.wait_for_event(100, this._check_has_response.bind(this, msg_id), callback_func, 'response');
+  }
+
+/* **************************************************************************************************************************** */
 
   get_base_message(msg_id) {
     let msg = {}
@@ -100,12 +174,14 @@ class WSXClient {
     return msg;
   }
 
+/* **************************************************************************************************************************** */
+
   get_create_session_message(msg_id) {
 
     // Base message to enrich with additional information
     let msg = this.get_base_message(msg_id);
 
-    msg.meta.action = "create-session";
+    msg.meta.action = 'create-session';
 
     msg.meta.client_id = this.client_id;
     msg.meta.client_name = this.client_name;
@@ -116,9 +192,31 @@ class WSXClient {
     return JSON.stringify(msg);
   }
 
+/* **************************************************************************************************************************** */
+
+  get_service_invoke_message(msg_id, service, request) {
+
+    // Base message to enrich with additional information
+    let msg = this.get_base_message(msg_id);
+
+    msg.meta.action = 'invoke-service';
+    msg.meta.token = this.token;
+
+    msg.data = {
+      'name': service,
+      'request': request
+    }
+
+    return JSON.stringify(msg);
+  }
+
+/* **************************************************************************************************************************** */
+
   generate_msg_id() {
     return this.client_name + '.' + Math.random().toString(16);
   }
+
+/* **************************************************************************************************************************** */
 
   send(msg_id, msg, wait_time) {
 
@@ -128,27 +226,33 @@ class WSXClient {
     // Invoke Zato
     this.impl.send(msg);
 
+    /*
     // Check if there was a response after a while
     let _after_invoke = function() {
       this.handle_response(msg_id);
     }
 
     setTimeout(_after_invoke.bind(this), wait_time || this.default_wait_time);
+    */
   }
+
+/* **************************************************************************************************************************** */
 
   handle_response(msg_id) {
     const response = this.response_map[msg_id];
     console.log(`Response to ${msg_id} is ${response}`);
   }
 
-  on_wsx_open(e) {
-    console.log(`Connected to ${this.address}`)
+/* **************************************************************************************************************************** */
 
-    // Request a session token now that we have connected
-    const msg_id = this.generate_msg_id();
-    const msg = this.get_create_session_message(msg_id);
-    this.send(msg_id, msg);
+  invoke(service, request, msg_id) {
+    const _msg_id = msg_id || this.generate_msg_id();
+    const msg = this.get_service_invoke_message(msg_id, service, request);
+
+    console.log(`Invoking service with ${msg}`);
   }
+
+/* **************************************************************************************************************************** */
 
   on_wsx_message(e) {
 
@@ -165,16 +269,20 @@ class WSXClient {
       this.response_map[msg.meta.in_reply_to] = msg;
     }
     else {
+      zzz
     }
   }
+
+/* **************************************************************************************************************************** */
 
   on_request_received(msg) {
     // This is a default handler for non-responses (i.e. requests)
     // received from Zato servers. It simply logs the message received.
     console.log(`WSX request received ${msg}`);
   }
-
 };
+
+/* **************************************************************************************************************************** */
 
 const client_id   = '123.456.789';
 const client_name = 'My API Client';
@@ -182,10 +290,23 @@ const address     = 'ws://localhost:50100/myapi'
 const username    = 'username1';
 const password    = 'password1';
 
+/* **************************************************************************************************************************** */
+
 // A callback function to be invoked once the client connects to Zato
-function after_connected(client) {
+function when_ready(client) {
   console.log(`Client ${client.client_name} connected to ${client.address} as ${client.username}`);
+
+  // Service invocation configuration
+  const service = 'zato.ping';
+  const request = {'Hello':'World'};
+
+  // Pub/sub configuration
+  const topic_name = '/my/topic';
+
+  client.invoke(service, request);
 }
+
+/* **************************************************************************************************************************** */
 
 // Create a client instance
 let client = new WSXClient();
@@ -196,16 +317,19 @@ client.client_name = client_name;
 client.address = address;
 client.username = username;
 client.password = password;
-client.after_connected = after_connected;
+client.when_ready = when_ready;
+
+/* **************************************************************************************************************************** */
 
 // Connect to Zato
 client.connect();
 
-// Connection will established in background so we need to wait for it
-client.wait_for_connection(60)
+/* **************************************************************************************************************************** */
 
-// Invoke a simple services
-//client.invoke('zato.ping', {'Hello':'World'});
+// Connection will established in background so we need to wait for it
+client.wait_until_ready(60)
+
+/* **************************************************************************************************************************** */
 
   </script>
 </head>
