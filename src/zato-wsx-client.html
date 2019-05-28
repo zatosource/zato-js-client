@@ -9,6 +9,12 @@
 
 /* **************************************************************************************************************************** */
 
+LogLevel = {};
+LogLevel.Error = 25;
+LogLevel.Info  = 50;
+
+/* **************************************************************************************************************************** */
+
 /*
    A Zato WebSocket client which knows how to:
 
@@ -37,7 +43,7 @@ class WSXClient {
     this.username = null;
 
     // Password to log in with
-    this.password = null;
+    this.secret = null;
 
     // Zato WSX token that we will be using once logged in
     this.invalid_token = '<invalid>';
@@ -57,6 +63,15 @@ class WSXClient {
 
     // A callback to invoke after each message from Zato received
     this.on_message_received = null;
+
+    // Maps subscription keys to topics
+    this.topic_to_sub_key = {};
+
+    // Maps topic names to subscription keys
+    this.sub_key_to_topic = {};
+
+    // At what verbosity to log;
+    this.log_level = LogLevel.Error;
 
     // Are we already connected to Zato?
     this._is_connected = false;
@@ -126,7 +141,7 @@ class WSXClient {
 
   _continue_to_wait(attempts, condition_func, callback_func, object_type) {
     console.log(`<< Waiting for '${object_type}' to '${this.address}', attempts left: ${attempts+1}`);
-    setTimeout(this.wait_for_event.bind(this), 1000, attempts, condition_func, callback_func, object_type);
+    setTimeout(this.wait_for_event.bind(this), 200, attempts, condition_func, callback_func, object_type);
   }
 
 /* **************************************************************************************************************************** */
@@ -153,11 +168,10 @@ class WSXClient {
     this.wait_for_event(attempts, this._check_is_connected.bind(this), null, 'connection');
   }
 
-
 /* **************************************************************************************************************************** */
 
   _wait_for_token() {
-    this.wait_for_event(1000, this._check_has_token.bind(this), this.when_ready, 'token');
+    this.wait_for_event(100, this._check_has_token.bind(this), this.when_ready, 'token');
   }
 
 /* **************************************************************************************************************************** */
@@ -190,7 +204,7 @@ class WSXClient {
     msg.meta.client_name = this.client_name;
 
     msg.meta.username = this.username;
-    msg.meta.password = this.password;
+    msg.meta.secret = this.secret;
 
     return JSON.stringify(msg);
   }
@@ -235,9 +249,12 @@ class WSXClient {
 
   handle_response(msg_id) {
     const response = this.response_map[msg_id];
-    console.log(`>> Response to '${msg_id}' is ${JSON.stringify(response)}`);
 
-    this.on_message_received(this, response);
+    if(this.log_level >= LogLevel.Info) {
+      console.log(`>> Response to '${msg_id}' is ${JSON.stringify(response)}`);
+    }
+
+    this.on_message_received(this, response, msg_id);
   }
 
 /* **************************************************************************************************************************** */
@@ -257,10 +274,19 @@ class WSXClient {
 
 /* **************************************************************************************************************************** */
 
+  subscribe(topic) {
+    console.log(`<< Subscribing to '${topic}'`);
+    this.invoke('zato.pubsub.pubapi.subscribe-wsx', {'topic_name':topic});
+  }
+
+/* **************************************************************************************************************************** */
+
   on_wsx_message(e) {
 
     // Log data received
-    console.log(`>> Message received ${e.data}`);
+    if(this.log_level >= LogLevel.Info) {
+      console.log(`>> Message received ${e.data}`);
+    }
 
     // We always expect JSON on input
     const msg = JSON.parse(e.data);
@@ -272,7 +298,7 @@ class WSXClient {
       this.response_map[msg.meta.in_reply_to] = msg;
     }
     else {
-      zzz
+      this.on_message_received(this, msg, null);
     }
   }
 };
@@ -283,13 +309,18 @@ const client_id   = '123.456.789';
 const client_name = 'My API Client';
 const address     = 'ws://localhost:50100/myapi'
 const username    = 'username1';
-const password    = 'password1';
+const secret      = 'secret1';
 
 /* **************************************************************************************************************************** */
 
 // A callback function to be invoked for each message received from Zato
-function on_message_received(client, msg) {
-  console.log(`>> Callback invoked with ${msg}`);
+function on_message_received(client, msg, in_reply_to) {
+  if(in_reply_to) {
+      console.log(`>> Callback received a response to '${in_reply_to}' - ${JSON.stringify(msg)}`);
+  }
+  else {
+    console.log(`>> Callback received a request - ${JSON.stringify(msg)}`);
+  }
 }
 
 /* **************************************************************************************************************************** */
@@ -303,9 +334,13 @@ function when_ready(client) {
   const request = {'Hello':'World'};
 
   // Pub/sub configuration
-  const topic_name = '/my/topic';
+  const topic = '/my/topic';
 
-  client.invoke(service, request);
+  // Invoke a sample service
+  //client.invoke(service, request);
+
+  // Subscribe to pub/sub messages
+  client.subscribe(topic);
 }
 
 /* **************************************************************************************************************************** */
@@ -318,7 +353,7 @@ client.client_id = client_id;
 client.client_name = client_name;
 client.address = address;
 client.username = username;
-client.password = password;
+client.secret = secret;
 
 client.when_ready = when_ready;
 client.on_message_received = on_message_received;
@@ -331,7 +366,7 @@ client.connect();
 /* **************************************************************************************************************************** */
 
 // Connection will established in background so we need to wait for it
-client.wait_until_ready(60)
+client.wait_until_ready(200)
 
 /* **************************************************************************************************************************** */
 
