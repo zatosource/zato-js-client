@@ -183,6 +183,10 @@ class WSXClient {
     this.wait_for_event(100, this._check_has_response.bind(this, msg_id), callback_func, 'response');
   }
 
+  _wait_for_sub_key(msg_id, callback_func) {
+    this.wait_for_event(100, this._check_has_response.bind(this, msg_id), callback_func, 'sub_key');
+  }
+
 /* **************************************************************************************************************************** */
 
   get_base_message(msg_id) {
@@ -277,9 +281,43 @@ class WSXClient {
 
 /* **************************************************************************************************************************** */
 
+  subscribe(topic) {
+    console.log(`Subscribing to '${topic}'`);
+    const msg_id = this.generate_msg_id();
+    this.invoke('zato.pubsub.pubapi.subscribe-wsx', {'topic_name':topic}, msg_id);
+
+    function _handle_sub_key_received() {
+      const response = this.response_map[msg_id];
+      const sub_key = response.data.sub_key;
+      console.log(`Received sub_key '${sub_key}' for topic '${topic}'`);
+
+      // Map sub_key to topic
+      this.topic_to_sub_key[topic] = sub_key;
+
+      // Map topic to sub_key
+      this.sub_key_to_topic[sub_key] = topic;
+
+      console.log(
+        `Mappings updated; tsk:${JSON.stringify(this.topic_to_sub_key)} skt:${JSON.stringify(this.sub_key_to_topic)}`);
+    }
+
+    this._wait_for_sub_key(msg_id, _handle_sub_key_received);
+  }
+
+  resume_subscription(sub_key, topic) {
+    console.log(`Resuming sub_key '${sub_key}' to '${topic}'`);
+  }
+
+/* **************************************************************************************************************************** */
+
   subscribe_or_resume(topic) {
-    console.log(`<< Subscribing to '${topic}'`);
-    this.invoke('zato.pubsub.pubapi.subscribe-wsx', {'topic_name':topic});
+    const sub_key = this.topic_to_sub_key[topic];
+    if(sub_key) {
+      this.resume_subscription(sub_key, topic);
+    }
+    else {
+      this.subscribe(topic);
+    }
   }
 
 /* **************************************************************************************************************************** */
