@@ -22,7 +22,7 @@ LogLevel.Info  = 50;
    * Invoke services
    * Subscribe to pub/sub messages
    * Unsubscribe from pub/sub
-   * Resume subscriptions
+   * Auto-reconnect if connections are closed by server
 */
 class WSXClient {
 
@@ -90,6 +90,9 @@ class WSXClient {
 
     // A callback invoked for each message received from the server
     this.impl.onmessage = this.on_wsx_message.bind(this);
+
+    // A callback invoked after server closes the underlying connection
+    this.impl.onclose = this.on_wsx_close.bind(this);
   }
 
 /* **************************************************************************************************************************** */
@@ -274,7 +277,7 @@ class WSXClient {
 
 /* **************************************************************************************************************************** */
 
-  subscribe(topic) {
+  subscribe_or_resume(topic) {
     console.log(`<< Subscribing to '${topic}'`);
     this.invoke('zato.pubsub.pubapi.subscribe-wsx', {'topic_name':topic});
   }
@@ -301,11 +304,26 @@ class WSXClient {
       this.on_message_received(this, msg, null);
     }
   }
+
+  on_wsx_close(e) {
+    // Log the information about the close event taking place
+    if(this._is_connected &&  this.log_level >= LogLevel.Error) {
+      console.log(`>> Server at ${this.address} closed connection; code:${e.code}, reason:'${e.reason}', clean:${e.wasClean}`);
+      console.log(`Reconnecting to ${this.address}`);
+    }
+
+    // Clean up metadata
+    this._is_connected = false;
+
+    // Actually connect now
+    this.connect();
+  }
+
 };
 
 /* **************************************************************************************************************************** */
 
-const client_id   = '123.456.789';
+const client_id   = Math.random().toString(24) + '-' + new Date().toISOString();
 const client_name = 'My API Client';
 const address     = 'ws://localhost:50100/myapi'
 const username    = 'username1';
@@ -340,7 +358,7 @@ function when_ready(client) {
   //client.invoke(service, request);
 
   // Subscribe to pub/sub messages
-  client.subscribe(topic);
+  client.subscribe_or_resume(topic);
 }
 
 /* **************************************************************************************************************************** */
