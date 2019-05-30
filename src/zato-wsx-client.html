@@ -299,7 +299,7 @@ class WSXClient {
         console.warn(`Did not receive a sub_key to ${topic} in response ${JSON.stringify(response)}`);
         return
       }
-      console.log(`Received sub_key '${sub_key}' for topic '${topic}'`);
+      console.log(`>> Received sub_key '${sub_key}' for topic '${topic}'`);
 
       // Map sub_key to topic
       this.topic_to_sub_key[topic] = sub_key;
@@ -316,6 +316,8 @@ class WSXClient {
 
   resume_subscription(sub_key, topic) {
     console.log(`Resuming sub_key '${sub_key}' to '${topic}'`);
+    const msg_id = this.generate_msg_id();
+    this.invoke('zato.pubsub.resume-wsx-subscription', {'sub_key':sub_key}, msg_id);
   }
 
 /* **************************************************************************************************************************** */
@@ -403,7 +405,7 @@ function when_ready(client) {
   const topic = '/my/topic';
 
   // Invoke a sample service
-  //client.invoke(service, request);
+  client.invoke(service, request);
 
   // Subscribe to pub/sub messages
   client.subscribe_or_resume(topic);
