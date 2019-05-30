@@ -7,6 +7,12 @@
 
   <script type="text/javascript">
 
+/*
+Copyright (C) 2019, Zato Source s.r.o. https://zato.io
+
+Licensed under LGPLv3, see LICENSE.txt for terms and conditions.
+*/
+
 /* **************************************************************************************************************************** */
 
 LogLevel = {};
@@ -289,6 +295,10 @@ class WSXClient {
     function _handle_sub_key_received() {
       const response = this.response_map[msg_id];
       const sub_key = response.data.sub_key;
+      if(!sub_key) {
+        console.warn(`Did not receive a sub_key to ${topic} in response ${JSON.stringify(response)}`);
+        return
+      }
       console.log(`Received sub_key '${sub_key}' for topic '${topic}'`);
 
       // Map sub_key to topic
@@ -363,7 +373,7 @@ class WSXClient {
 
 const client_id   = Math.random().toString(24) + '-' + new Date().toISOString();
 const client_name = 'My API Client';
-const address     = 'ws://localhost:50100/myapi'
+const address     = 'ws://localhost:50103/myapi'
 const username    = 'username1';
 const secret      = 'secret1';
 
@@ -422,7 +432,7 @@ client.connect();
 /* **************************************************************************************************************************** */
 
 // Connection will established in background so we need to wait for it
-client.wait_until_ready(200)
+client.wait_until_ready(2000)
 
 /* **************************************************************************************************************************** */
 
