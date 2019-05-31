@@ -2,7 +2,7 @@
   "name": "zato-js-client",
   "version": "1.0.0",
   "description": "JavaScript client library for Zato",
-  "main": "zato-client.js",
+  "main": "main.js",
   "scripts": {
     "test": "node test/rest.js",
     "build": "webpack",
