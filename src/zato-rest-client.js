@@ -27,7 +27,7 @@ class InvocationException {
 
 /* **************************************************************************************************************************** */
 
-class RESTClient {
+class ZatoRESTClient {
 
   constructor(address, path, username, password, config=null) {
     this.address = address;
@@ -96,7 +96,7 @@ class RESTClient {
     const path = config.url;
     const username = config.auth.username;
     const password = config.auth.password;
-    return new RESTClient(address, path, username, password, config);
+    return new ZatoRESTClient(address, path, username, password, config);
   }
 
 }
