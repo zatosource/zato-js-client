@@ -102,31 +102,3 @@ class RESTClient {
 }
 
 /* **************************************************************************************************************************** */
-
-const address = 'http://localhost:11223';
-const path = '/api';
-const username = 'username1';
-const password = 'password1';
-const service_name = 'zato.ping';
-
-//const client = new RESTClient(address, path, username, password);
-
-const config = {
-  'baseURL': address,
-  'url': path,
-  'auth': {
-    'username': username,
-    'password': password,
-  }
-}
-
-const client = RESTClient.from_config(config);
-
-const request = {
-  'aaa': 'AAA',
-  'bbb': 111
-}
-
-client.invoke(service_name, request)
-
-/* **************************************************************************************************************************** */
