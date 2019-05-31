@@ -1,12 +1,3 @@
-<!doctype html>
-<html>
-<head>
-
-<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
-<meta content="utf-8" http-equiv="encoding">
-
-  <script type="text/javascript">
-
 /*
 Copyright (C) 2019, Zato Source s.r.o. https://zato.io
 
@@ -373,16 +364,8 @@ class WSXClient {
 
 /* **************************************************************************************************************************** */
 
-const client_id   = Math.random().toString(24) + '-' + new Date().toISOString();
-const client_name = 'My API Client';
-const address     = 'ws://localhost:50103/myapi'
-const username    = 'username1';
-const secret      = 'secret1';
-
-/* **************************************************************************************************************************** */
-
 // A callback function to be invoked for each message received from Zato
-function on_message_received(client, msg, in_reply_to) {
+function sample_on_message_received(client, msg, in_reply_to) {
   if(in_reply_to) {
       console.log(`>> Callback received a response to '${in_reply_to}' - ${JSON.stringify(msg)}`);
   }
@@ -393,8 +376,8 @@ function on_message_received(client, msg, in_reply_to) {
 
 /* **************************************************************************************************************************** */
 
-// A callback function to be invoked once the client connects to Zato
-function when_ready(client) {
+// A sample callback function to be invoked once the client connects to Zato
+function sample_when_ready(client) {
   console.log(`>> Client ${client.client_name} connected to ${client.address} as ${client.username}`);
 
   // Service invocation configuration
@@ -412,33 +395,3 @@ function when_ready(client) {
 }
 
 /* **************************************************************************************************************************** */
-
-// Create a client instance
-let client = new WSXClient();
-
-// Fill out configuration
-client.client_id = client_id;
-client.client_name = client_name;
-client.address = address;
-client.username = username;
-client.secret = secret;
-
-client.when_ready = when_ready;
-client.on_message_received = on_message_received;
-
-/* **************************************************************************************************************************** */
-
-// Connect to Zato
-client.connect();
-
-/* **************************************************************************************************************************** */
-
-// Connection will established in background so we need to wait for it
-client.wait_until_ready(2000)
-
-/* **************************************************************************************************************************** */
-
-  </script>
-</head>
-<body>
-</body>
