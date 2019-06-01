@@ -308,16 +308,33 @@ class WSXClient {
       this.sub_key_to_topic[sub_key] = topic;
 
       console.log(
-        `Mappings updated; tsk:${JSON.stringify(this.topic_to_sub_key)} skt:${JSON.stringify(this.sub_key_to_topic)}`);
+        `Mappings updated (sub); tsk:${JSON.stringify(this.topic_to_sub_key)} skt:${JSON.stringify(this.sub_key_to_topic)}`);
     }
 
     this._wait_for_sub_key(msg_id, _handle_sub_key_received);
   }
 
+/* **************************************************************************************************************************** */
+
   resume_subscription(sub_key, topic) {
     console.log(`Resuming sub_key '${sub_key}' to '${topic}'`);
+    this.invoke('zato.pubsub.resume-wsx-subscription', {'sub_key':sub_key});
+  }
+
+/* **************************************************************************************************************************** */
+
+  unsubscribe(sub_key, topic) {
+    console.log(`Unsubscribing sub_key '${sub_key}' from '${topic}'`);
     const msg_id = this.generate_msg_id();
-    this.invoke('zato.pubsub.resume-wsx-subscription', {'sub_key':sub_key}, msg_id);
+    this.invoke('zato.pubsub.pubapi.unsubscribe', {'sub_key':sub_key}, msg_id);
+
+    function _handle_unsubscribed() {
+      delete this.topic_to_sub_key[topic];
+      delete this.sub_key_to_topic[sub_key];
+      console.log(
+        `Mappings updated (unsub); tsk:${JSON.stringify(this.topic_to_sub_key)} skt:${JSON.stringify(this.sub_key_to_topic)}`);
+    }
+    this._wait_for_sub_key(msg_id, _handle_unsubscribed);
   }
 
 /* **************************************************************************************************************************** */
