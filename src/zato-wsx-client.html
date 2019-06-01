@@ -103,6 +103,19 @@ class WSXClient {
 
 /* **************************************************************************************************************************** */
 
+  get_disconnect_reason() {
+    return `Client disconnecting id:'${this.client_id}' name:'${this.client_name}'`;
+  }
+
+/* **************************************************************************************************************************** */
+
+  disconnect() {
+    this.impl.close(1000, this.get_disconnect_reason());
+    console.log('Disconnected from '+ this.address);
+  }
+
+/* **************************************************************************************************************************** */
+
   on_wsx_open(e) {
     console.log(`>> Connected to '${this.address}'`)
 
@@ -298,9 +311,6 @@ class WSXClient {
       'ext_client_id':ext_client_id,
       'ext_pub_time':ext_pub_time,
     }
-
-    console.warn('PUB PUB');
-
     this.invoke('zato.pubsub.pubapi.publish-message', request, msg_id);
   }
 
@@ -408,18 +418,33 @@ class WSXClient {
 
 /* **************************************************************************************************************************** */
 
+  is_client_close_event(e) {
+    return e.code == 1000 && e.reason == this.get_disconnect_reason();
+  }
+
+/* **************************************************************************************************************************** */
+
   on_wsx_close(e) {
-    // Log the information about the close event taking place
-    if(this._is_connected &&  this.log_level >= LogLevel.Error) {
-      console.log(`>> Server at ${this.address} closed connection; code:${e.code}, reason:'${e.reason}', clean:${e.wasClean}`);
-      console.log(`Reconnecting to ${this.address}`);
+    // This function is invoked if either server or the client itself
+    // closes the connection, hence we need to differentiate between the two cases.
+    const is_server_closing = !(this.is_client_close_event(e));
+
+    if(is_server_closing) {
+
+      // Log the information about the close event taking place
+      if(this._is_connected &&  this.log_level >= LogLevel.Error) {
+        console.log(`>> Server at ${this.address} closed connection; code:${e.code}, reason:'${e.reason}', clean:${e.wasClean}`);
+        console.log(`Reconnecting to ${this.address}`);
+      }
     }
 
     // Clean up metadata
     this._is_connected = false;
 
-    // Actually connect now
-    this.connect();
+    // Reconnect now but only if it was server that closed the connection
+    if(is_server_closing) {
+      this.connect();
+    }
   }
 
 };
@@ -466,6 +491,8 @@ function when_ready(client) {
   client.subscribe_or_resume(topic);
 
   //client.publish(topic, 'My message');
+
+  //client.disconnect();
 }
 
 /* **************************************************************************************************************************** */
