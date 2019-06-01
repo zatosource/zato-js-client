@@ -110,7 +110,7 @@ class WSXClient {
     this._is_connected = true;
 
     // Request a session token now that we have connected
-    const msg_id = this.generate_msg_id();
+    const msg_id = this.new_message_id();
     const msg = this.get_create_session_message(msg_id);
 
     // A callback to invoke after we have a session established with Zato
@@ -243,7 +243,7 @@ class WSXClient {
 
 /* **************************************************************************************************************************** */
 
-  generate_msg_id() {
+  new_message_id() {
     return this.client_name + '.' + Math.random().toString(16);
   }
 
@@ -272,8 +272,42 @@ class WSXClient {
 
 /* **************************************************************************************************************************** */
 
+  publish(topic, _data, _ctx) {
+    const ctx = _ctx || {};
+    const data = _data || '';
+    const msg_id = ctx.msg_id || '111';//this.new_message_id();
+    const has_gd = ctx.has_gd || false;
+    const priority = ctx.priority || 5;
+    const expiration = ctx.expiration || null;
+    const mime_type = ctx.mime_type || 'text/plain';
+    const correl_id = ctx.correl_id || null;
+    const in_reply_to = ctx.in_reply_to || null;
+    const ext_client_id = ctx.ext_client_id || null;
+    const ext_pub_time = ctx.ext_pub_time || null;
+
+    const request = {
+      'topic_name':topic,
+      'data':data,
+      'msg_id':msg_id,
+      'has_gd':has_gd,
+      'priority':priority,
+      'expiration':expiration,
+      'mime_type':mime_type,
+      'correl_id':correl_id,
+      'in_reply_to':in_reply_to,
+      'ext_client_id':ext_client_id,
+      'ext_pub_time':ext_pub_time,
+    }
+
+    console.warn('PUB PUB');
+
+    this.invoke('zato.pubsub.pubapi.publish-message', request, msg_id);
+  }
+
+/* **************************************************************************************************************************** */
+
   invoke(service, request, _msg_id) {
-    const msg_id = _msg_id || this.generate_msg_id();
+    const msg_id = _msg_id || this.new_message_id();
     const msg = this.get_service_invoke_message(msg_id, service, request);
     console.log(`<< Invoking service with ${msg}`);
 
@@ -289,7 +323,7 @@ class WSXClient {
 
   subscribe(topic) {
     console.log(`Subscribing to '${topic}'`);
-    const msg_id = this.generate_msg_id();
+    const msg_id = this.new_message_id();
     this.invoke('zato.pubsub.pubapi.subscribe-wsx', {'topic_name':topic}, msg_id);
 
     function _handle_sub_key_received() {
@@ -325,7 +359,7 @@ class WSXClient {
 
   unsubscribe(sub_key, topic) {
     console.log(`Unsubscribing sub_key '${sub_key}' from '${topic}'`);
-    const msg_id = this.generate_msg_id();
+    const msg_id = this.new_message_id();
     this.invoke('zato.pubsub.pubapi.unsubscribe', {'sub_key':sub_key}, msg_id);
 
     function _handle_unsubscribed() {
@@ -371,6 +405,8 @@ class WSXClient {
       this.on_message_received(this, msg, null);
     }
   }
+
+/* **************************************************************************************************************************** */
 
   on_wsx_close(e) {
     // Log the information about the close event taking place
@@ -419,13 +455,17 @@ function when_ready(client) {
   const request = {'Hello':'World'};
 
   // Pub/sub configuration
-  const topic = '/my/topic';
+  const topic = '/my/topic2';
+
+  const msg_id = client.new_message_id();
 
   // Invoke a sample service
-  client.invoke(service, request);
+  client.invoke(service, request, msg_id);
 
   // Subscribe to pub/sub messages
   client.subscribe_or_resume(topic);
+
+  //client.publish(topic, 'My message');
 }
 
 /* **************************************************************************************************************************** */
@@ -451,7 +491,7 @@ client.connect();
 /* **************************************************************************************************************************** */
 
 // Connection will established in background so we need to wait for it
-client.wait_until_ready(2000)
+client.wait_until_ready(2000);
 
 /* **************************************************************************************************************************** */
 
