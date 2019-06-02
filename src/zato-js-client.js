@@ -395,3 +395,8 @@ function sample_when_ready(client) {
 }
 
 /* **************************************************************************************************************************** */
+module.exports = {
+    "ZatoWSXClient": ZatoWSXClient,
+    "sample_on_message_received": sample_on_message_received,
+    "sample_when_ready": sample_when_ready
+};
