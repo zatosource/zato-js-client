@@ -15,6 +15,13 @@ Licensed under LGPLv3, see LICENSE.txt for terms and conditions.
 
 /* **************************************************************************************************************************** */
 
+// Require the WebSocket module under NodeJS
+if(typeof process === 'object') {
+  var WebSocket = require('ws')
+}
+
+/* **************************************************************************************************************************** */
+
 LogLevel = {};
 LogLevel.Error = 25;
 LogLevel.Info  = 50;
