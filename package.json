@@ -1,6 +1,6 @@
 {
   "name": "zato-js-client",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "JavaScript client library for Zato",
   "main": "src/zato-js-client.js",
   "scripts": {
