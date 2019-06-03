@@ -28,7 +28,7 @@ LogLevel.Info  = 50;
     * Unsubscribe from pub/sub
     * Auto-reconnect if connections are closed by server
 */
-class WSXClient {
+class ZatoWSXClient {
 
 /* **************************************************************************************************************************** */
 
