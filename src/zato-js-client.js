@@ -84,7 +84,7 @@ constructor() {
 /* **************************************************************************************************************************** */
 
 connect() {
-      console.log('Connecting to '+ this.address);
+    console.log('Connecting to '+ this.address);
 
     // Establish a new connection
     this.impl = new WebSocket(this.address);
@@ -103,19 +103,19 @@ connect() {
 
 get_disconnect_reason() {
     return `Client disconnecting id:'${this.client_id}' name:'${this.client_name}'`;
-    }
+  }
 
 /* **************************************************************************************************************************** */
 
-    disconnect() {
-      this.impl.close(1000, this.get_disconnect_reason());
+disconnect() {
+    this.impl.close(1000, this.get_disconnect_reason());
     console.log('Disconnected from '+ this.address);
   }
 
 /* **************************************************************************************************************************** */
 
-    on_wsx_open(e) {
-      console.log(`>> Connected to '${this.address}'`)
+on_wsx_open(e) {
+    console.log(`>> Connected to '${this.address}'`)
 
     // Set a flag signalling that we are connected now
     this._is_connected = true;
@@ -127,9 +127,9 @@ get_disconnect_reason() {
     // A callback to invoke after we have a session established with Zato
     function on_session_created() {
         const msg = this.response_map[msg_id];
-      console.log(`>> Received session token '${msg.data.token}' for client '${this.client_name}' (${this.client_id})`);
-      this.token = msg.data.token;
-      this.when_ready(this);
+        console.log(`>> Received session token '${msg.data.token}' for client '${this.client_name}' (${this.client_id})`);
+        this.token = msg.data.token;
+        this.when_ready(this);
     }
 
     // Request a session token ..
@@ -141,33 +141,33 @@ get_disconnect_reason() {
 
 /* **************************************************************************************************************************** */
 
-    _check_is_connected() {
-        return this._is_connected;
-    }
+_check_is_connected() {
+    return this._is_connected;
+  }
 
 /* **************************************************************************************************************************** */
 
-    _check_has_token() {
-        return this.token != this.invalid_token;
-    }
+_check_has_token() {
+    return this.token != this.invalid_token;
+  }
 
 /* **************************************************************************************************************************** */
 
-    _check_has_response(msg_id) {
-        return this.response_map[msg_id];
-    }
+_check_has_response(msg_id) {
+    return this.response_map[msg_id];
+  }
 
 /* **************************************************************************************************************************** */
 
-    _continue_to_wait(attempts, condition_func, callback_func, object_type) {
-      console.log(`<< Waiting for '${object_type}' to '${this.address}', attempts left: ${attempts+1}`);
+_continue_to_wait(attempts, condition_func, callback_func, object_type) {
+    console.log(`<< Waiting for '${object_type}' to '${this.address}', attempts left: ${attempts+1}`);
     setTimeout(this.wait_for_event.bind(this), 200, attempts, condition_func, callback_func, object_type);
   }
 
 /* **************************************************************************************************************************** */
 
-    wait_for_event(attempts, condition_func, callback_func, object_type) {
-      if(!condition_func()) {
+wait_for_event(attempts, condition_func, callback_func, object_type) {
+    if(!condition_func()) {
         if(attempts < 0) {
           console.log(`Could not obtain ${object_type} to ${this.address}`);
       }
@@ -184,42 +184,42 @@ get_disconnect_reason() {
 
 /* **************************************************************************************************************************** */
 
-    wait_until_ready(attempts) {
-      this.wait_for_event(attempts, this._check_is_connected.bind(this), null, 'connection');
+wait_until_ready(attempts) {
+    this.wait_for_event(attempts, this._check_is_connected.bind(this), null, 'connection');
   }
 
 /* **************************************************************************************************************************** */
 
-    _wait_for_token() {
-      this.wait_for_event(100, this._check_has_token.bind(this), this.when_ready, 'token');
+_wait_for_token() {
+    this.wait_for_event(100, this._check_has_token.bind(this), this.when_ready, 'token');
   }
 
 /* **************************************************************************************************************************** */
 
-    _wait_for_response(msg_id, callback_func) {
-      this.wait_for_event(100, this._check_has_response.bind(this, msg_id), callback_func, 'response');
+_wait_for_response(msg_id, callback_func) {
+    this.wait_for_event(100, this._check_has_response.bind(this, msg_id), callback_func, 'response');
   }
 
-    _wait_for_sub_key(msg_id, callback_func) {
-      this.wait_for_event(100, this._check_has_response.bind(this, msg_id), callback_func, 'sub_key');
+_wait_for_sub_key(msg_id, callback_func) {
+    this.wait_for_event(100, this._check_has_response.bind(this, msg_id), callback_func, 'sub_key');
   }
 
 /* **************************************************************************************************************************** */
 
-    get_base_message(msg_id) {
-      let msg = {}
+get_base_message(msg_id) {
+    let msg = {}
     msg.meta = {
         'id': msg_id,
         'timestamp': new Date().toISOString(),
     }
         return msg;
-    }
+  }
 
 /* **************************************************************************************************************************** */
 
-    get_create_session_message(msg_id) {
+get_create_session_message(msg_id) {
 
-      // Base message to enrich with additional information
+    // Base message to enrich with additional information
     let msg = this.get_base_message(msg_id);
 
     msg.meta.action = 'create-session';
@@ -230,14 +230,14 @@ get_disconnect_reason() {
     msg.meta.username = this.username;
     msg.meta.secret = this.secret;
 
-        return JSON.stringify(msg);
-    }
+    return JSON.stringify(msg);
+  }
 
 /* **************************************************************************************************************************** */
 
-    get_service_invoke_message(msg_id, service, request) {
+get_service_invoke_message(msg_id, service, request) {
 
-      // Base message to enrich with additional information
+    // Base message to enrich with additional information
     let msg = this.get_base_message(msg_id);
 
     msg.meta.action = 'invoke-service';
@@ -246,21 +246,21 @@ get_disconnect_reason() {
 
     msg.data = {
         'service': service,
-      'request': request
+        'request': request
     }
 
-        return JSON.stringify(msg);
-    }
+    return JSON.stringify(msg);
+  }
 
 /* **************************************************************************************************************************** */
 
-    new_message_id() {
-        return this.client_name + '.' + Math.random().toString(16);
-    }
+new_message_id() {
+    return this.client_name + '.' + Math.random().toString(16);
+  }
 
 /* **************************************************************************************************************************** */
 
-    send(msg_id, msg) {
+send(msg_id, msg) {
 
       // Add msg_id to the response map, signalling thus that we expect a response
     this.response_map[msg_id] = null;
@@ -271,8 +271,8 @@ get_disconnect_reason() {
 
 /* **************************************************************************************************************************** */
 
-    handle_response(msg_id) {
-      const response = this.response_map[msg_id];
+handle_response(msg_id) {
+    const response = this.response_map[msg_id];
 
     if(this.log_level >= LogLevel.Info) {
         console.log(`>> Response to '${msg_id}' is ${JSON.stringify(response)}`);
@@ -283,8 +283,8 @@ get_disconnect_reason() {
 
 /* **************************************************************************************************************************** */
 
-    publish(topic, _data, _ctx) {
-      const ctx = _ctx || {};
+publish(topic, _data, _ctx) {
+    const ctx = _ctx || {};
     const data = _data || '';
     const msg_id = ctx.msg_id || '111';//this.new_message_id();
     const has_gd = ctx.has_gd || false;
@@ -314,8 +314,8 @@ get_disconnect_reason() {
 
 /* **************************************************************************************************************************** */
 
-    invoke(service, request, _msg_id) {
-      const msg_id = _msg_id || this.new_message_id();
+invoke(service, request, _msg_id) {
+    const msg_id = _msg_id || this.new_message_id();
     const msg = this.get_service_invoke_message(msg_id, service, request);
     console.log(`<< Invoking service with ${msg}`);
 
@@ -325,21 +325,22 @@ get_disconnect_reason() {
 
         this.send(msg_id, msg);
         this._wait_for_response(msg_id, _handle_response);
-    }
+  }
 
 /* **************************************************************************************************************************** */
 
-    subscribe(topic) {
-      console.log(`Subscribing to '${topic}'`);
+subscribe(topic) {
+    console.log(`Subscribing to '${topic}'`);
     const msg_id = this.new_message_id();
     this.invoke('zato.pubsub.pubapi.subscribe-wsx', {'topic_name':topic}, msg_id);
 
     function _handle_sub_key_received() {
         const response = this.response_map[msg_id];
-      const sub_key = response.data.sub_key;
-      if(!sub_key) {
-          console.warn(`Did not receive a sub_key to ${topic} in response ${JSON.stringify(response)}`);
-        return
+        const sub_key = response.data.sub_key;
+
+        if(!sub_key) {
+            console.warn(`Did not receive a sub_key to ${topic} in response ${JSON.stringify(response)}`);
+            return
         }
         console.log(`>> Received sub_key '${sub_key}' for topic '${topic}'`);
 
@@ -353,36 +354,36 @@ get_disconnect_reason() {
           `Mappings updated (sub); tsk:${JSON.stringify(this.topic_to_sub_key)} skt:${JSON.stringify(this.sub_key_to_topic)}`);
         }
 
-        this._wait_for_sub_key(msg_id, _handle_sub_key_received);
-    }
+    this._wait_for_sub_key(msg_id, _handle_sub_key_received);
+  }
 
 /* **************************************************************************************************************************** */
 
-    resume_subscription(sub_key, topic) {
-      console.log(`Resuming sub_key '${sub_key}' to '${topic}'`);
+resume_subscription(sub_key, topic) {
+    console.log(`Resuming sub_key '${sub_key}' to '${topic}'`);
     this.invoke('zato.pubsub.resume-wsx-subscription', {'sub_key':sub_key});
   }
 
 /* **************************************************************************************************************************** */
 
-    unsubscribe(sub_key, topic) {
-      console.log(`Unsubscribing sub_key '${sub_key}' from '${topic}'`);
+unsubscribe(sub_key, topic) {
+    console.log(`Unsubscribing sub_key '${sub_key}' from '${topic}'`);
     const msg_id = this.new_message_id();
     this.invoke('zato.pubsub.pubapi.unsubscribe', {'sub_key':sub_key}, msg_id);
 
     function _handle_unsubscribed() {
         delete this.topic_to_sub_key[topic];
-      delete this.sub_key_to_topic[sub_key];
-      console.log(
+        delete this.sub_key_to_topic[sub_key];
+        console.log(
           `Mappings updated (unsub); tsk:${JSON.stringify(this.topic_to_sub_key)} skt:${JSON.stringify(this.sub_key_to_topic)}`);
     }
     this._wait_for_sub_key(msg_id, _handle_unsubscribed);
-  }
+}
 
 /* **************************************************************************************************************************** */
 
-    subscribe_or_resume(topic) {
-      const sub_key = this.topic_to_sub_key[topic];
+subscribe_or_resume(topic) {
+    const sub_key = this.topic_to_sub_key[topic];
     if(sub_key) {
         this.resume_subscription(sub_key, topic);
     }
@@ -393,9 +394,9 @@ get_disconnect_reason() {
 
 /* **************************************************************************************************************************** */
 
-    on_wsx_message(e) {
+on_wsx_message(e) {
 
-      // Log data received
+    // Log data received
     if(this.log_level >= LogLevel.Info) {
         console.log(`>> Message received ${e.data}`);
     }
@@ -403,9 +404,6 @@ get_disconnect_reason() {
     // We always expect JSON on input
     const msg = JSON.parse(e.data);
 
-    /* If this is a response, store it for the original caller to be able to find it.
-    Otherwise, invoke a callback function to
-       */
     if(msg.meta.in_reply_to) {
         this.response_map[msg.meta.in_reply_to] = msg;
     }
@@ -416,24 +414,24 @@ get_disconnect_reason() {
 
 /* **************************************************************************************************************************** */
 
-    is_client_close_event(e) {
-        return e.code == 1000 && e.reason == this.get_disconnect_reason();
-    }
+is_client_close_event(e) {
+    return e.code == 1000 && e.reason == this.get_disconnect_reason();
+}
 
 /* **************************************************************************************************************************** */
 
-    on_wsx_close(e) {
-      // This function is invoked if either server or the client itself
+on_wsx_close(e) {
+    // This function is invoked if either server or the client itself
     // closes the connection, hence we need to differentiate between the two cases.
     const is_server_closing = !(this.is_client_close_event(e));
 
     if(is_server_closing) {
 
         // Log the information about the close event taking place
-      if(this._is_connected &&  this.log_level >= LogLevel.Error) {
-          console.log(`>> Server at ${this.address} closed connection; code:${e.code}, reason:'${e.reason}', clean:${e.wasClean}`);
-        console.log(`Reconnecting to ${this.address}`);
-      }
+        if(this._is_connected &&  this.log_level >= LogLevel.Error) {
+            console.log(`>> Server at ${this.address} closed connection; code:${e.code}, reason:'${e.reason}', clean:${e.wasClean}`);
+            console.log(`Reconnecting to ${this.address}`);
+        }
     }
 
     // Clean up metadata
